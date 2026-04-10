@@ -29,20 +29,31 @@ function getClient(ctx: Context): GoogleGenerativeAI {
   return new GoogleGenerativeAI(ctx.env.GEMINI_API_KEY);
 }
 
+const TEXT_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+
 async function invokeGemini(
   ctx: Context,
   systemPrompt: string,
   userPrompt: string
 ): Promise<string> {
   const client = getClient(ctx);
-  const model = client.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: systemPrompt,
-  });
-
-  const result = await model.generateContent(userPrompt);
-  const response = result.response;
-  return response.text();
+  let lastError: unknown;
+  for (const modelName of TEXT_MODELS) {
+    try {
+      const model = client.getGenerativeModel({ model: modelName, systemInstruction: systemPrompt });
+      const result = await model.generateContent(userPrompt);
+      return result.response.text();
+    } catch (err: unknown) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+        console.log(`Model ${modelName} overloaded, trying fallback...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
 }
 
 async function invokeGeminiJSON<T = unknown>(
@@ -51,17 +62,28 @@ async function invokeGeminiJSON<T = unknown>(
   userPrompt: string
 ): Promise<T> {
   const client = getClient(ctx);
-  const model = client.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: systemPrompt,
-    generationConfig: {
-      responseMimeType: 'application/json',
-    },
-  });
-
-  const result = await model.generateContent(userPrompt);
-  const text = result.response.text();
-  return JSON.parse(text) as T;
+  let lastError: unknown;
+  for (const modelName of TEXT_MODELS) {
+    try {
+      const model = client.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemPrompt,
+        generationConfig: { responseMimeType: 'application/json' },
+      });
+      const result = await model.generateContent(userPrompt);
+      const text = result.response.text();
+      return JSON.parse(text) as T;
+    } catch (err: unknown) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+        console.log(`Model ${modelName} overloaded, trying fallback...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
 }
 
 // ── Brand Context (from aiRouter.ts) ───────────────────────────────────────
