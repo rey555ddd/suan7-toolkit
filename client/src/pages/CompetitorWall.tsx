@@ -137,7 +137,15 @@ export default function CompetitorWall() {
                   <p className="text-xs font-medium text-muted-foreground mb-1">活躍平台</p>
                   <div className="flex flex-wrap gap-1">
                     {comp.platforms.map(p => (
-                      <span key={p} className="text-xs bg-muted px-2 py-0.5 rounded-full">{p}</span>
+                      <a
+                        key={p.name}
+                        href={p.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs bg-muted px-2 py-0.5 rounded-full hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer underline-offset-2 hover:underline"
+                      >
+                        {p.name} ↗
+                      </a>
                     ))}
                   </div>
                 </div>

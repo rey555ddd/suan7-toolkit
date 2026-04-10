@@ -384,41 +384,64 @@ export const BUDGET_RANGES = [
 ];
 
 // 競品資料
+export interface CompetitorPlatform {
+  name: string;
+  url: string;
+}
+
 export const COMPETITORS = [
   {
     name: '魚你同在',
     type: '酸菜魚',
     style: '文青風格，強調食材產地',
     popularPosts: ['食材溯源系列', '主廚日記', '季節限定菜色發佈'],
-    platforms: ['Facebook', 'Instagram'],
+    platforms: [
+      { name: 'Facebook', url: 'https://www.facebook.com/fishmeetyou/' },
+      { name: 'Instagram', url: 'https://www.instagram.com/fishmeetyou/' },
+    ] as CompetitorPlatform[],
   },
   {
     name: '太二酸菜魚',
     type: '酸菜魚',
     style: '潮流個性，「太二」人設鮮明',
     popularPosts: ['二哥語錄', '超過四人不接待話題', '聯名周邊商品'],
-    platforms: ['Facebook', 'Instagram', 'TikTok'],
+    platforms: [
+      { name: 'Facebook', url: 'https://www.facebook.com/taier.tw/' },
+      { name: 'Instagram', url: 'https://www.instagram.com/taier.tw/' },
+      { name: 'TikTok', url: 'https://www.tiktok.com/@taier.tw' },
+    ] as CompetitorPlatform[],
   },
   {
     name: '撈王鍋物',
     type: '火鍋/湯鍋',
     style: '高端養生路線，豬肚雞主打',
     popularPosts: ['養生湯品知識', '食材科普', 'VIP會員活動'],
-    platforms: ['Facebook', 'Instagram'],
+    platforms: [
+      { name: 'Facebook', url: 'https://www.facebook.com/laowanghotpot.tw/' },
+      { name: 'Instagram', url: 'https://www.instagram.com/laowang_hotpot_tw/' },
+    ] as CompetitorPlatform[],
   },
   {
     name: '海底撈',
     type: '火鍋',
     style: '服務至上，社群互動極強',
     popularPosts: ['隱藏吃法', '服務驚喜故事', 'DIY調料配方'],
-    platforms: ['Facebook', 'Instagram', 'YouTube', 'TikTok'],
+    platforms: [
+      { name: 'Facebook', url: 'https://www.facebook.com/haborttw/' },
+      { name: 'Instagram', url: 'https://www.instagram.com/haidilao_taiwan/' },
+      { name: 'YouTube', url: 'https://www.youtube.com/@haidilao' },
+      { name: 'TikTok', url: 'https://www.tiktok.com/@haidilao' },
+    ] as CompetitorPlatform[],
   },
   {
     name: '這一鍋',
     type: '火鍋',
     style: '古風中國風，視覺質感高',
     popularPosts: ['古風美食攝影', '節氣限定鍋物', '文化故事系列'],
-    platforms: ['Facebook', 'Instagram'],
+    platforms: [
+      { name: 'Facebook', url: 'https://www.facebook.com/theonepot/' },
+      { name: 'Instagram', url: 'https://www.instagram.com/the_one_pot/' },
+    ] as CompetitorPlatform[],
   },
 ];
 
