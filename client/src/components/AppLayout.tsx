@@ -22,13 +22,106 @@ const NAV_ITEMS = [
 
 const FEEDBACK_ITEM = { path: '/feedback', label: '修改建議區', icon: MessageSquarePlus, gradient: 'from-violet-600 to-indigo-600' };
 
+
+/**
+ * 首頁浮動導航列（透明背景，覆蓋在 Hero 上方）
+ */
+function HomeNavbar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const quickLinks = [
+    { path: '/post-generator', label: '小編助手' },
+    { path: '/templates', label: '模板庫' },
+    { path: '/calendar', label: '行事曆' },
+    { path: '/event-wizard', label: '活動企劃' },
+    { path: '/feedback', label: '修改建議' },
+  ];
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-14">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <img
+              src={BRAND.logoSmallUrl}
+              alt={BRAND.name}
+              className="w-9 h-9 object-contain rounded-lg"
+            />
+            <div>
+              <span className="font-serif text-sm font-bold text-gray-900">
+                {BRAND.name}
+              </span>
+              <span className="hidden sm:inline text-xs text-gray-400 ml-1.5">
+                小編工具箱
+              </span>
+            </div>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-1">
+            {quickLinks.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                className="px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+
+          <button
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? <X size={20} className="text-gray-700" /> : <Menu size={20} className="text-gray-700" />}
+          </button>
+        </div>
+      </div>
+
+      {mobileOpen && (
+        <div className="md:hidden border-t border-gray-200/50 bg-white/95 backdrop-blur-lg">
+          <div className="container mx-auto px-4 py-2">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Icon className="w-4 h-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
+            <Link
+              href="/feedback"
+              className="flex items-center gap-3 px-3 py-2.5 text-sm text-violet-600 hover:bg-violet-50 rounded-lg transition-colors font-medium mt-1 border-t border-gray-100 pt-3"
+              onClick={() => setMobileOpen(false)}
+            >
+              <MessageSquarePlus className="w-4 h-4" />
+              修改建議區
+            </Link>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Home page has its own full layout
   if (location === '/') {
-    return <>{children}</>;
+    return (
+      <>
+        <HomeNavbar />
+        {children}
+      </>
+    );
   }
 
   return (

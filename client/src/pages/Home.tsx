@@ -68,13 +68,13 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* ========== HERO SECTION ========== */}
-      <section className="relative overflow-hidden min-h-[520px] sm:min-h-[600px]">
+      <section className="relative overflow-hidden min-h-[480px] sm:min-h-[560px]">
         <div className="absolute inset-0">
           <img src={HERO_IMG} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-background" />
         </div>
 
-        <div className="relative z-10 container mx-auto px-4 pt-14 pb-24 sm:pt-20 sm:pb-32">
+        <div className="relative z-10 container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-28">
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
