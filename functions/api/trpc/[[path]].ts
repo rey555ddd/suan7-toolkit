@@ -673,6 +673,7 @@ const withMarketing = (prompt: string) => {
 
 interface Env {
   GEMINI_API_KEY: string;
+  DB?: D1Database;
 }
 
 interface Context {
@@ -721,6 +722,25 @@ async function invokeGemini(
   throw lastError;
 }
 
+function parseGeminiJson<T = unknown>(rawText: string): T {
+  let cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const firstBrace = cleaned.indexOf('{');
+  const firstBracket = cleaned.indexOf('[');
+  const start = firstBrace >= 0 && (firstBracket < 0 || firstBrace < firstBracket)
+    ? firstBrace : firstBracket;
+  const lastBrace = cleaned.lastIndexOf('}');
+  const lastBracket = cleaned.lastIndexOf(']');
+  const end = lastBrace >= 0 && lastBrace > lastBracket ? lastBrace : lastBracket;
+  if (start >= 0 && end > start) {
+    cleaned = cleaned.slice(start, end + 1);
+  }
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    throw new Error('AI 回應格式異常，請重新生成');
+  }
+}
+
 async function invokeGeminiJSON<T = unknown>(
   ctx: Context,
   systemPrompt: string,
@@ -737,7 +757,7 @@ async function invokeGeminiJSON<T = unknown>(
       });
       const result = await model.generateContent(userPrompt);
       const text = result.response.text();
-      return JSON.parse(text) as T;
+      return parseGeminiJson<T>(text);
     } catch (err: unknown) {
       lastError = err;
       const msg = err instanceof Error ? err.message : String(err);
@@ -834,34 +854,13 @@ function buildImagePrompt(
   ].join(', ');
 }
 
+const IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-2.0-flash-exp'];
+
 async function generateWithGeminiFallback(
   ctx: Context,
   prompt: string
 ): Promise<string> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${ctx.env.GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ['IMAGE', 'TEXT'],
-        },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Gemini image generation failed: ${err}`);
-  }
-
-  const data = (await response.json()) as {
+  type GeminiImageResponse = {
     candidates?: Array<{
       content?: {
         parts?: Array<{
@@ -872,12 +871,46 @@ async function generateWithGeminiFallback(
     }>;
   };
 
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  const imagePart = parts.find((p) => p.inlineData?.data);
-  if (!imagePart?.inlineData) throw new Error('No image in Gemini response');
+  for (const model of IMAGE_MODELS) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${ctx.env.GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+          }),
+        }
+      );
 
-  const { mimeType, data: imageData } = imagePart.inlineData;
-  return `data:${mimeType};base64,${imageData}`;
+      if (!response.ok) {
+        const errText = await response.text();
+        // Only retry on transient errors
+        if ([429, 500, 502, 503, 504].includes(response.status)) {
+          console.log(`[Image] ${model} returned ${response.status}, trying next...`);
+          continue;
+        }
+        throw new Error(`圖片生成失敗 (${response.status})，請稍後再試`);
+      }
+
+      const data = (await response.json()) as GeminiImageResponse;
+      const parts = data.candidates?.[0]?.content?.parts ?? [];
+      const imagePart = parts.find((p) => p.inlineData?.data);
+      if (!imagePart?.inlineData) {
+        console.log(`[Image] ${model} returned no image, trying next...`);
+        continue;
+      }
+
+      const { mimeType, data: imageData } = imagePart.inlineData;
+      return `data:${mimeType};base64,${imageData}`;
+    } catch (e) {
+      console.error(`[Image] ${model} error:`, e);
+      continue;
+    }
+  }
+  throw new Error('AI 圖片生成失敗，請稍候 30 秒後再試');
 }
 
 // ── App Router ─────────────────────────────────────────────────────────────
@@ -898,7 +931,7 @@ const appRouter = router({
             'limited_offer',
           ]),
           platform: z.enum(['facebook', 'instagram']),
-          customInput: z.string().max(500).optional(),
+          customInput: z.string().max(2000).optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -1231,6 +1264,37 @@ ${input.content}
       .input(z.object({ id: z.number() }))
       .mutation(async () => {
         throw new Error('Database functionality not available in Cloudflare Pages');
+      }),
+  }),
+
+  // ── Feedback Router ────────────────────────────────────────────────────────
+  feedback: router({
+    status: publicProcedure.query(({ ctx }) => ({
+      configured: !!ctx.env.DB,
+    })),
+
+    submit: publicProcedure
+      .input(z.object({
+        tool: z.string(),
+        toolContext: z.string().optional(),
+        outputText: z.string(),
+        rating: z.enum(['up', 'down', 'gold']),
+        userName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = ctx.env.DB as any;
+        if (!db) return { success: false, stored: false };
+        const id = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+        await db.prepare(
+          `INSERT INTO feedback (id, output_id, rating, tool, created_at) VALUES (?, ?, ?, ?, datetime('now'))`
+        ).bind(id, `adhoc_${id}`, input.rating, input.tool).run();
+        if (input.rating === 'gold') {
+          const gid = `g_${id}`;
+          await db.prepare(
+            `INSERT INTO gold_library (id, content, tool, created_at) VALUES (?, ?, ?, datetime('now'))`
+          ).bind(gid, input.outputText, input.tool).run();
+        }
+        return { success: true, stored: true };
       }),
   }),
 });

@@ -94,9 +94,9 @@ export const POST_TYPES: { value: PostType; label: string; icon: string; descrip
 
 export type Platform = 'facebook' | 'instagram';
 
-export const PLATFORMS: { value: Platform; label: string; maxLength: number; hashtagCount: number }[] = [
-  { value: 'facebook', label: 'Facebook', maxLength: 500, hashtagCount: 5 },
-  { value: 'instagram', label: 'Instagram', maxLength: 300, hashtagCount: 15 },
+export const PLATFORMS: { value: Platform; label: string; minLength: number; maxLength: number; hashtagCount: number; hashtagRange: string }[] = [
+  { value: 'facebook', label: 'Facebook', minLength: 200, maxLength: 500, hashtagCount: 5, hashtagRange: '5–8 個' },
+  { value: 'instagram', label: 'Instagram', minLength: 150, maxLength: 300, hashtagCount: 15, hashtagRange: '15–20 個' },
 ];
 
 // 預設 Hashtag 庫

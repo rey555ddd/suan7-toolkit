@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Copy, RefreshCw, Sparkles, Clock, Image, Hash } from 'lucide-react';
+import { Copy, RefreshCw, Sparkles, Clock, Image, Hash, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import FeedbackBar from '@/components/FeedbackBar';
+import LoadingBanner from '@/components/LoadingBanner';
 
 interface PostResult {
   content: string;
@@ -21,6 +23,7 @@ export default function PostGenerator() {
   const [platform, setPlatform] = useState<Platform>('facebook');
   const [customInput, setCustomInput] = useState('');
   const [result, setResult] = useState<PostResult | null>(null);
+  const [refineInstruction, setRefineInstruction] = useState('');
 
   const generateMutation = trpc.ai.generatePost.useMutation({
     onSuccess: (data) => {
@@ -32,18 +35,33 @@ export default function PostGenerator() {
     },
   });
 
-  const handleGenerate = () => {
-    generateMutation.mutate({ postType, platform, customInput: customInput || undefined });
+  const handleGenerate = (extraInstruction?: string, previousDraft?: string) => {
+    const parts = [
+      customInput,
+      extraInstruction,
+      previousDraft
+        ? `基於以下原稿進行修改（保留整體方向，只依上述指令調整）：\n${previousDraft}`
+        : '',
+    ].filter((s) => s && s.trim());
+    const merged = parts.join('\n\n');
+    generateMutation.mutate({
+      postType,
+      platform,
+      customInput: merged || undefined,
+    });
+  };
+
+  const handleRefine = () => {
+    if (!refineInstruction.trim()) {
+      toast.error('請先輸入修改指令');
+      return;
+    }
+    handleGenerate(refineInstruction, result?.content);
   };
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('已複製到剪貼簿！');
-  };
-
-  const handleRegenerate = () => {
-    toast.info('重新生成中...');
-    handleGenerate();
   };
 
   const selectedType = POST_TYPES.find(t => t.value === postType);
@@ -112,7 +130,7 @@ export default function PostGenerator() {
               </Select>
               {selectedPlatform && (
                 <p className="text-xs text-muted-foreground">
-                  建議文案長度：{selectedPlatform.maxLength} 字以內 ｜ Hashtag：{selectedPlatform.hashtagCount} 個
+                  推薦字數：{selectedPlatform.minLength}–{selectedPlatform.maxLength} 字 ｜ Hashtag：{selectedPlatform.hashtagRange}
                 </p>
               )}
             </div>
@@ -132,7 +150,7 @@ export default function PostGenerator() {
 
           {/* Generate Button */}
           <Button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate()}
             disabled={isGenerating}
             className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
             size="lg"
@@ -145,6 +163,15 @@ export default function PostGenerator() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Loading Banner */}
+      {isGenerating && !result && (
+        <Card>
+          <CardContent className="py-0">
+            <LoadingBanner message="Gemini 正在創作酸小七文案..." />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Result */}
       {result && (
@@ -161,18 +188,58 @@ export default function PostGenerator() {
                 <Sparkles className="w-4 h-4 text-primary" />
                 生成文案
               </CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleRegenerate} disabled={isGenerating}>
-                  <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isGenerating ? 'animate-spin' : ''}`} /> 重新生成
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => handleCopy(result.content)}>
-                  <Copy className="w-3.5 h-3.5 mr-1.5" /> 複製
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={() => handleCopy(result.content)}>
+                <Copy className="w-3.5 h-3.5 mr-1.5" /> 複製
+              </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="bg-muted/50 rounded-xl p-4 sm:p-6 whitespace-pre-wrap text-sm leading-relaxed font-sans">
                 {result.content}
+              </div>
+
+              <FeedbackBar
+                tool="postGenerator"
+                toolContext={`${postType} / ${platform}`}
+                outputText={result.content}
+                className="mt-2"
+              />
+
+              {/* ── RefineBox ── */}
+              <div className="rounded-xl border border-red-200 bg-red-50/60 p-4 space-y-3">
+                <label className="text-xs font-medium text-red-700 flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5" />
+                  ✏️ 修改指令（例：更口語、縮短一半、加上限時感、改成 IG 語氣）
+                </label>
+                <Textarea
+                  value={refineInstruction}
+                  onChange={(e) => setRefineInstruction(e.target.value)}
+                  placeholder="輸入微調指令，按『套用指令再生成』"
+                  rows={2}
+                  className="resize-none text-xs bg-white/80"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleRefine}
+                    disabled={isGenerating}
+                    size="sm"
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs"
+                  >
+                    {isGenerating ? (
+                      <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> 生成中...</>
+                    ) : (
+                      <><Wand2 className="w-3.5 h-3.5 mr-1.5" /> 套用指令再生成</>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => { setRefineInstruction(''); handleGenerate(); }}
+                    disabled={isGenerating}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    完全重新生成
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

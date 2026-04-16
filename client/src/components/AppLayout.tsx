@@ -7,6 +7,7 @@ import {
   MessageSquarePlus, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import FeedbackBubble from '@/components/FeedbackBubble';
 
 const NAV_ITEMS = [
   { path: '/', label: '首頁', icon: Home, gradient: 'from-slate-500 to-gray-600' },
@@ -120,6 +121,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <>
         <HomeNavbar />
         {children}
+        <FeedbackBubble />
       </>
     );
   }
@@ -246,6 +248,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <FeedbackBubble />
     </div>
   );
 }

@@ -322,6 +322,29 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Changelog Section */}
+      <section className="py-10 border-t border-border/40">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary"></span>
+            更新紀錄
+          </h2>
+          <div className="space-y-3">
+            {[
+              { date: "2026-04-16", tag: "新功能", desc: "小編助手加入 RefineBox 微調指令，可套用調整再生成" },
+              { date: "2026-04-16", tag: "新功能", desc: "新增 AI 回饋欄（採用 / 重做 / 存金庫），D1 綁定後即用" },
+              { date: "2026-04-14", tag: "優化", desc: "圖片生成升級 gemini-2.5-flash-image，失敗自動 fallback" },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3 text-sm">
+                <span className="text-xs text-muted-foreground font-mono mt-0.5 w-24 shrink-0">{item.date}</span>
+                <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary shrink-0">{item.tag}</span>
+                <span className="text-muted-foreground">{item.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ========== FOOTER ========== */}
       <footer className="bg-ink text-white/80">
         <div className="container mx-auto px-4 py-12">
